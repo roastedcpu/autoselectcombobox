@@ -21,10 +21,11 @@ import java.util.EnumSet;
 public class TransientStoreView extends AbstractDemo {
 
     private int nextId = 200;
-    private final TransientItemStore<Person> sharedStore = new TransientItemStore<>();
+    private TransientItemStore<Person> sharedStore;
 
     @Override
     protected void initView() {
+        sharedStore = new TransientItemStore<>();
         addCard("Shared transient store across multiple combo boxes",
                 sharedStoreDemo());
 

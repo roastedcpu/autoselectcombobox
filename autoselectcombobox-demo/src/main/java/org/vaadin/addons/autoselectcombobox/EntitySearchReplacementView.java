@@ -43,17 +43,19 @@ import java.util.function.Consumer;
  *   <li>Commit/discard lifecycle</li>
  * </ul>
  */
-@PageTitle("Full Showcase")
-@Menu(order = 6)
-@Route("entity-search")
+@PageTitle("ARA Specific")
+@Menu(order = 7)
+@Route("ara-specific")
 public class EntitySearchReplacementView extends AbstractDemo {
 
     private int nextId = 300;
-    private final TransientItemStore<Identification> transientStore = new TransientItemStore<>();
-    private final List<Identification> persisted = new ArrayList<>();
+    private TransientItemStore<Identification> transientStore;
+    private List<Identification> persisted;
 
     @Override
     protected void initView() {
+        transientStore = new TransientItemStore<>();
+        persisted = new ArrayList<>();
         // Seed persisted data
         persisted.add(new Identification(1, "PT123456789", "ADSE", LocalDate.of(2027, 12, 31), true));
         persisted.add(new Identification(2, "SNS987654321", "SNS", LocalDate.of(2026, 6, 30), true));
@@ -82,7 +84,9 @@ public class EntitySearchReplacementView extends AbstractDemo {
                     String filter = query.getFilter().orElse("");
                     return persisted.stream()
                             .filter(id -> filter.isEmpty() || id.getNumber().toLowerCase().contains(filter.toLowerCase())
-                                    || id.getEntity().toLowerCase().contains(filter.toLowerCase()));
+                                    || id.getEntity().toLowerCase().contains(filter.toLowerCase()))
+                            .skip(query.getOffset())
+                            .limit(query.getLimit());
                 },
                 query -> {
                     String filter = query.getFilter().orElse("");

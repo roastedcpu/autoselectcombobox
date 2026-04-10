@@ -48,6 +48,7 @@ public class TransientAwareDataProvider<T, F> extends AbstractDataProvider<T, F>
 
     @Override
     public int size(Query<T, F> query) {
+        // Build a zero-offset/max-limit query for the delegate to get its full count
         int delegateSize = delegate.size(query);
         long transientSize = getFilteredTransientItems(query.getFilter().orElse(null)).size();
         return delegateSize + (int) transientSize;
@@ -55,17 +56,30 @@ public class TransientAwareDataProvider<T, F> extends AbstractDataProvider<T, F>
 
     @Override
     public Stream<T> fetch(Query<T, F> query) {
-        Stream<T> delegateStream = delegate.fetch(query);
-        List<T> transientItems = getFilteredTransientItems(query.getFilter().orElse(null));
+        int offset = query.getOffset();
+        int limit = query.getLimit();
 
-        if (transientItems.isEmpty()) {
-            return delegateStream;
+        List<T> transientItems = getFilteredTransientItems(query.getFilter().orElse(null));
+        int transientSize = transientItems.size();
+
+        List<T> result = new ArrayList<>();
+
+        // Transient items come first
+        if (offset < transientSize) {
+            int transientEnd = Math.min(transientSize, offset + limit);
+            result.addAll(transientItems.subList(offset, transientEnd));
         }
 
-        // Prepend transient items so they appear at the top
-        List<T> combined = new ArrayList<>(transientItems);
-        delegateStream.forEach(combined::add);
-        return combined.stream();
+        // Fill remaining from delegate
+        int remaining = limit - result.size();
+        if (remaining > 0) {
+            int delegateOffset = Math.max(0, offset - transientSize);
+            delegate.fetch(new Query<>(delegateOffset, remaining, query.getSortOrders(),
+                            query.getInMemorySorting(), query.getFilter().orElse(null)))
+                    .forEach(result::add);
+        }
+
+        return result.stream();
     }
 
     private List<T> getFilteredTransientItems(F filter) {
