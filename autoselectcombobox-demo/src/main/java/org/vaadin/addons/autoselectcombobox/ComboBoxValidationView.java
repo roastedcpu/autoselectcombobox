@@ -1,171 +1,130 @@
 package org.vaadin.addons.autoselectcombobox;
 
-import com.vaadin.flow.component.button.Button;
 import com.vaadin.flow.component.combobox.ComboBox;
 import com.vaadin.flow.component.dependency.Uses;
 import com.vaadin.flow.component.html.Anchor;
+import com.vaadin.flow.component.html.Span;
 import com.vaadin.flow.component.icon.Icon;
-import com.vaadin.flow.component.notification.Notification;
+import com.vaadin.flow.component.orderedlayout.VerticalLayout;
 import com.vaadin.flow.data.binder.Binder;
-import com.vaadin.flow.data.binder.Result;
 import com.vaadin.flow.data.binder.ValidationResult;
-import com.vaadin.flow.data.binder.Validator;
-import com.vaadin.flow.data.binder.ValueContext;
-import com.vaadin.flow.data.converter.Converter;
 import com.vaadin.flow.data.provider.DataProvider;
 import com.vaadin.flow.router.Menu;
 import com.vaadin.flow.router.PageTitle;
 import com.vaadin.flow.router.Route;
 
-@PageTitle("ComboBox Validation")
+@PageTitle("Auto-Select Basics")
 @Menu(order = 1)
 @Route("")
 @Uses(Icon.class)
 public class ComboBoxValidationView extends AbstractDemo {
 
-    private org.vaadin.addons.autoselectcombobox.PersonService personService;
+    private PersonService personService;
 
     @Override
     protected void initView() {
         personService = new PersonService(1);
-        addComboValidation();
-    }
 
-    private void addComboValidation() {
         DataProvider<Person, String> dataProvider = DataProvider.fromFilteringCallbacks(
                 query -> personService.fetch(query.getOffset(), query.getLimit(), query.getFilter().orElse(null)).stream(),
                 query -> personService.count(query.getFilter().orElse(null)));
 
-        AutoSelectComboBox<String> asComboBoxReadOnly = comboBoxReadOnly();
+        addCard("Standard ComboBox (comparison)",
+                regularComboBox(dataProvider));
 
-        Button button = new Button("Check value", e -> {
-            Notification.show(asComboBoxReadOnly.getValue());
-        });
+        addCard("Auto-select with DataProvider",
+                autoSelectWithDataProvider(dataProvider));
 
-        // end-source-example
-        addCard("ComboBox with autoselect", regularComboBox(dataProvider),
-                comboBoxMultipleItems(dataProvider), comboBoxTwoItems(), asComboBoxReadOnly,
-                comboBoxWithAutoFocus(), comboBoxWithBinderValidation(),
-                new Anchor("#", "Focus target for testing"), button);
+        addCard("Auto-select with fixed items",
+                autoSelectWithFixedItems());
+
+        addCard("Read-only",
+                readOnlyComboBox());
+
+        addCard("Autofocus with single item",
+                autoFocusComboBox());
+
+        addCard("Binder with validation",
+                binderValidation());
+
+        add(new Anchor("#", "Focus target for testing"));
     }
-
 
     private ComboBox<Person> regularComboBox(DataProvider<Person, String> dataProvider) {
-        ComboBox<Person> comboBoxDefault = new ComboBox<>("People");
-        comboBoxDefault.setHelperText("Default behaviour");
-        comboBoxDefault.setItems(dataProvider);
-        comboBoxDefault.setItemLabelGenerator(Person::toString);
-        comboBoxDefault.setClearButtonVisible(true);
-        return comboBoxDefault;
+        ComboBox<Person> combo = new ComboBox<>("Regular ComboBox");
+        combo.setHelperText("Standard ComboBox for comparison. Clears input on blur if no match.");
+        combo.setItems(dataProvider);
+        combo.setItemLabelGenerator(Person::toString);
+        combo.setClearButtonVisible(true);
+        return combo;
     }
 
-    private AutoSelectComboBox<Person> comboBoxMultipleItems(DataProvider<Person, String> dataProvider) {
-        AutoSelectComboBox<Person> asComboBoxMultiItems = new AutoSelectComboBox<>("Autoselect with 1 item");
-        asComboBoxMultiItems.setHelperText("Custom Web Component. Auto select if 1 option. Allow custom values + run validation against options.");
-        asComboBoxMultiItems.setItems(dataProvider);
-        asComboBoxMultiItems.setItemLabelGenerator(Person::toString);
-        asComboBoxMultiItems.setClearButtonVisible(true);
-        asComboBoxMultiItems.addValueChangeListener(e -> {
-            System.out.println("asComboBox value change to " + e.getValue());
-        });
+    private AutoSelectComboBox<Person> autoSelectWithDataProvider(DataProvider<Person, String> dataProvider) {
+        AutoSelectComboBox<Person> combo = new AutoSelectComboBox<>("AutoSelectComboBox with DataProvider");
+        combo.setHelperText("Type a partial name. If exactly one match remains, it auto-selects on blur/Enter.");
+        combo.setItems(dataProvider);
+        combo.setItemLabelGenerator(Person::toString);
+        combo.setClearButtonVisible(true);
 
-        return asComboBoxMultiItems;
+        Span status = new Span("Value: none");
+        combo.addValueChangeListener(e ->
+                status.setText("Value: " + (e.getValue() != null ? e.getValue() : "none")));
+
+        VerticalLayout layout = new VerticalLayout(combo, status);
+        layout.setPadding(false);
+        return combo;
     }
 
-    private AutoSelectComboBox<Person> comboBoxTwoItems() {
-        AutoSelectComboBox<Person> asComboBoxTwoItems = new AutoSelectComboBox<>("AutoSelect with 2 items");
-        asComboBoxTwoItems.setHelperText("Custom Web Component. Auto select if 1 option. Allow custom values + run validation against options.");
-        asComboBoxTwoItems.setItems(new Person(1, "Aaron", "Allen", 22,
-                null, "123"), new Person(2, "Benjamin", "Brick  ", 32,
-                null, "1223"));
-        asComboBoxTwoItems.setClearButtonVisible(true);
-        asComboBoxTwoItems.setItemLabelGenerator(Person::toString);
-        return asComboBoxTwoItems;
+    private AutoSelectComboBox<String> autoSelectWithFixedItems() {
+        AutoSelectComboBox<String> combo = new AutoSelectComboBox<>("AutoSelectComboBox with fixed items");
+        combo.setHelperText("Fixed list: Bar, Foo, Baz, Quizzle, Quux. Type 'Q' to see auto-select.");
+        combo.setItems("Bar", "Foo", "Baz", "Quizzle", "Quux");
+        combo.setClearButtonVisible(true);
+
+        Span status = new Span("Value: none");
+        combo.addValueChangeListener(e ->
+                status.setText("Value: " + (e.getValue() != null ? e.getValue() : "none")));
+
+        VerticalLayout layout = new VerticalLayout(combo, status);
+        layout.setPadding(false);
+        return combo;
     }
 
-    private AutoSelectComboBox<String> comboBoxReadOnly() {
-        AutoSelectComboBox<String> asComboBoxReadOnly = new AutoSelectComboBox<>("Read-only");
-        asComboBoxReadOnly.setItems("Foo", "Bar", "Baz2");
-        asComboBoxReadOnly.setValue("Bar");
-        asComboBoxReadOnly.setClearButtonVisible(true);
-        asComboBoxReadOnly.setReadOnly(true);
-        asComboBoxReadOnly.addValueChangeListener(e -> Notification.show("New value: " + e.getValue()));
-        return asComboBoxReadOnly;
+    private AutoSelectComboBox<String> readOnlyComboBox() {
+        AutoSelectComboBox<String> combo = new AutoSelectComboBox<>("Read-only");
+        combo.setHelperText("Pre-set to 'Bar', not editable.");
+        combo.setItems("Foo", "Bar", "Baz");
+        combo.setValue("Bar");
+        combo.setReadOnly(true);
+        combo.setClearButtonVisible(true);
+        return combo;
     }
 
-    private AutoSelectComboBox<String> comboBoxWithAutoFocus() {
-        AutoSelectComboBox<String> comboBox = new AutoSelectComboBox<>("Autoselect with 1 item, autofocus");
-        comboBox.setAutofocus(true);
-        comboBox.setItems("Foo");
-        comboBox.setValue("Foo");
-        return comboBox;
+    private AutoSelectComboBox<String> autoFocusComboBox() {
+        AutoSelectComboBox<String> combo = new AutoSelectComboBox<>("Autofocus with 1 item");
+        combo.setHelperText("Autofocus on page load with a single pre-selected item.");
+        combo.setAutofocus(true);
+        combo.setItems("Foo");
+        combo.setValue("Foo");
+        return combo;
     }
 
-    private AutoSelectComboBox<String> comboBoxWithBinderValidation() {
-        AutoSelectComboBox<String> bindingCombo = new AutoSelectComboBox<>("Binding with validation");
-        bindingCombo.setItems("Bar", "Foo");
-        bindingCombo.setValue("Bar");
-        Binder<Holder> binder = new Binder<>();
-        binder.forField(bindingCombo).asRequired().withConverter(new Converter<String, Choice>() {
-            @Override
-            public Result<Choice> convertToModel(String s, ValueContext valueContext) {
-                Choice choice1 = new Choice(s);
-                return Result.ok(choice1);
-            }
+    private AutoSelectComboBox<String> binderValidation() {
+        AutoSelectComboBox<String> combo = new AutoSelectComboBox<>("With Binder validation");
+        combo.setHelperText("Required field. 'Foo' is rejected by a custom validator.");
+        combo.setItems("Bar", "Foo", "Baz");
+        combo.setValue("Bar");
 
-            @Override
-            public String convertToPresentation(Choice choice, ValueContext valueContext) {
-                return choice.getChosenValue();
-            }
-        }).withValidator(new Validator<Choice>() {
-            @Override
-            public ValidationResult apply(Choice choice, ValueContext valueContext) {
-                if ("Foo".equals(choice.getChosenValue())) {
-                    return ValidationResult.error("No foo allowed");
-                }
-                return ValidationResult.ok();
-            }
-        }).bind(Holder::getChoice, Holder::setChoice);
+        Binder<TestBean> binder = new Binder<>();
+        binder.forField(combo)
+                .asRequired("Selection is required")
+                .withValidator((value, ctx) ->
+                        "Foo".equals(value)
+                                ? ValidationResult.error("'Foo' is not allowed")
+                                : ValidationResult.ok())
+                .bind(TestBean::getName, TestBean::setName);
 
-        return bindingCombo;
+        binder.setBean(new TestBean());
+        return combo;
     }
-
-    private Person buildEmptyPerson() {
-        Person person = new Person();
-        person.setId(-1);
-        person.setFirstName("");
-        person.setLastName("");
-        return person;
-    }
-
-    private class Choice {
-
-        private String chosenValue = "Bar";
-
-        public Choice(String s) {
-            chosenValue = s;
-        }
-
-        public String getChosenValue() {
-            return chosenValue;
-        }
-
-        public void setChosenValue(String chosenValue) {
-            this.chosenValue = chosenValue;
-        }
-
-    }
-
-    private class Holder {
-        Choice choice;
-
-        public Choice getChoice() {
-            return choice;
-        }
-
-        public void setChoice(Choice choice) {
-            this.choice = choice;
-        }
-    }
-
 }

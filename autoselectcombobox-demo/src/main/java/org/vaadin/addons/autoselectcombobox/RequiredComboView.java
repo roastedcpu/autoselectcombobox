@@ -6,83 +6,72 @@ import com.vaadin.flow.component.combobox.ComboBox.ComboBoxI18n;
 import com.vaadin.flow.component.html.Anchor;
 import com.vaadin.flow.component.html.Span;
 import com.vaadin.flow.component.orderedlayout.VerticalLayout;
-import com.vaadin.flow.data.provider.DataProvider;
 import com.vaadin.flow.router.Menu;
 import com.vaadin.flow.router.PageTitle;
 import com.vaadin.flow.router.Route;
 
-@PageTitle("Required Combo Box")
+@PageTitle("Required Field")
 @Menu(order = 2)
-@Route("Required")
+@Route("required")
 public class RequiredComboView extends AbstractDemo {
-
-    private PersonService personService;
 
     @Override
     protected void initView() {
-        personService = new PersonService(1);
-        addComboValidation();
-    }
-
-    private void addComboValidation() {
-        DataProvider<Person, String> dataProvider = DataProvider.fromFilteringCallbacks(
-                query -> personService.fetch(query.getOffset(), query.getLimit(), query.getFilter().orElse(null)).stream(),
-                query -> personService.count(query.getFilter().orElse(null)));
-
-        // end-source-example
-        addCard("ComboBox, required value",
-                requiredAutoSelectComboBox(),
-                requiredWithInitialValueAutoSelectComboBox(),
-                requiredNormalComboBox(),
-                requiredWithInitialValueNormalComboBox(),
+        addCard("Required — AutoSelectComboBox vs standard ComboBox",
+                requiredAutoSelect(),
+                requiredAutoSelectWithInitialValue(),
+                requiredStandardComboBox(),
+                requiredStandardWithInitialValue(),
                 new Anchor("#", "Focus target for testing"));
     }
 
+    private Component requiredAutoSelect() {
+        AutoSelectComboBox<String> combo = new AutoSelectComboBox<>("AutoSelect — Required (no initial value)");
+        combo.setHelperText("Leave empty and blur to see the required error.");
+        combo.setItems("Bar", "Foo", "Baz", "Quizzle", "Quux");
+        combo.setRequired(true);
+        combo.setI18n(new ComboBoxI18n().setRequiredErrorMessage("This field is required"));
 
-    private Component requiredAutoSelectComboBox() {
-        AutoSelectComboBox<String> requiredCombo = new AutoSelectComboBox<>("Autoselect Required");
-        requiredCombo.setItems("Bar", "Foo", "Baz", "Quizzle", "Quux", "Flim", "Flam", "Raquette", "Boslix", "Suppum", "Amliaum");
-        requiredCombo.setRequired(true);
-        requiredCombo.setI18n(new ComboBoxI18n()
-                .setRequiredErrorMessage("Field is required"));
-        VerticalLayout vl = new VerticalLayout();
-        Span span = new Span("Value: ");
-        requiredCombo.addValueChangeListener( e -> span.setText("Value: " + e.getValue()));
-        vl.add(requiredCombo, span);
+        Span value = new Span("Value: none");
+        combo.addValueChangeListener(e -> value.setText("Value: " + e.getValue()));
+
+        VerticalLayout vl = new VerticalLayout(combo, value);
+        vl.setPadding(false);
         return vl;
     }
 
-    private Component requiredWithInitialValueAutoSelectComboBox() {
-        AutoSelectComboBox<String> requiredCombo = new AutoSelectComboBox<>("Autoselect2 Required");
-        requiredCombo.setItems("Bar", "Foo", "Baz", "Quizzle", "Quux", "Flim", "Flam", "Raquette", "Boslix", "Suppum", "Amliaum");
-        requiredCombo.setRequired(true);
-        requiredCombo.setValue("Foo");
-        requiredCombo.setI18n(new ComboBoxI18n()
-                .setRequiredErrorMessage("Field is required"));
-        VerticalLayout vl = new VerticalLayout();
-        Span span = new Span("Value: ");
-        requiredCombo.addValueChangeListener( e -> span.setText("Value: " + e.getValue()));
-        vl.add(requiredCombo, span);
-        return vl;
-    }
-
-    private ComboBox<String> requiredNormalComboBox() {
-        ComboBox<String> combo = new ComboBox<>("Regular required");
-        combo.setItems("Bar", "Foo", "Baz", "Quizzle", "Quux", "Flim", "Flam", "Raquette", "Boslix", "Suppum", "Amliaum");
+    private Component requiredAutoSelectWithInitialValue() {
+        AutoSelectComboBox<String> combo = new AutoSelectComboBox<>("AutoSelect — Required (initial: Foo)");
+        combo.setHelperText("Clear the value and blur to trigger required validation.");
+        combo.setItems("Bar", "Foo", "Baz", "Quizzle", "Quux");
         combo.setRequired(true);
-        combo.setI18n(new ComboBoxI18n()
-                .setRequiredErrorMessage("Field is required"));
-        return combo;
-    }
-
-    private ComboBox<String> requiredWithInitialValueNormalComboBox() {
-        ComboBox<String> combo = new ComboBox<>("Regular2 required");
-        combo.setItems("Bar", "Foo", "Baz", "Quizzle", "Quux", "Flim", "Flam", "Raquette", "Boslix", "Suppum", "Amliaum");
-        combo.setRequired(true);
-        combo.setI18n(new ComboBoxI18n()
-                .setRequiredErrorMessage("Field is required"));
         combo.setValue("Foo");
+        combo.setI18n(new ComboBoxI18n().setRequiredErrorMessage("This field is required"));
+
+        Span value = new Span("Value: Foo");
+        combo.addValueChangeListener(e -> value.setText("Value: " + e.getValue()));
+
+        VerticalLayout vl = new VerticalLayout(combo, value);
+        vl.setPadding(false);
+        return vl;
+    }
+
+    private ComboBox<String> requiredStandardComboBox() {
+        ComboBox<String> combo = new ComboBox<>("Standard — Required (no initial value)");
+        combo.setHelperText("Standard ComboBox for comparison.");
+        combo.setItems("Bar", "Foo", "Baz", "Quizzle", "Quux");
+        combo.setRequired(true);
+        combo.setI18n(new ComboBoxI18n().setRequiredErrorMessage("This field is required"));
         return combo;
     }
 
+    private ComboBox<String> requiredStandardWithInitialValue() {
+        ComboBox<String> combo = new ComboBox<>("Standard — Required (initial: Foo)");
+        combo.setHelperText("Standard ComboBox for comparison.");
+        combo.setItems("Bar", "Foo", "Baz", "Quizzle", "Quux");
+        combo.setRequired(true);
+        combo.setValue("Foo");
+        combo.setI18n(new ComboBoxI18n().setRequiredErrorMessage("This field is required"));
+        return combo;
+    }
 }
