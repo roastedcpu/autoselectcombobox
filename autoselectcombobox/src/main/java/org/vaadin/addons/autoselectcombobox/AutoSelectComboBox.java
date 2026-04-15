@@ -20,7 +20,6 @@ import java.util.stream.Collectors;
  * <p>
  * <b>Custom value flow (Enter on non-existing text):</b>
  * <ol>
- *   <li>User types text not matching any item and triggers (Enter/Tab/Blur)</li>
  *   <li>{@link CustomValueValidator} runs — if it fails, error is shown, flow stops</li>
  *   <li>If a {@link CustomValueHandler} is set, it is called with submit/cancel callbacks</li>
  *   <li>If no handler is set, a {@link CustomValueSubmittedEvent} fires directly</li>
