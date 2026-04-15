@@ -15,15 +15,23 @@ import java.util.stream.Collectors;
 
 /**
  * A ComboBox that auto-selects the only matching item on blur/Enter,
- * with optional support for accepting values not present in the data source.
+ * with optional support for accepting values not present in the data source
+ * and for editing existing values on Enter.
  * <p>
- * <b>Custom value flow:</b>
+ * <b>Custom value flow (Enter on non-existing text):</b>
  * <ol>
  *   <li>User types text not matching any item and triggers (Enter/Tab/Blur)</li>
  *   <li>{@link CustomValueValidator} runs — if it fails, error is shown, flow stops</li>
  *   <li>If a {@link CustomValueHandler} is set, it is called with submit/cancel callbacks</li>
  *   <li>If no handler is set, a {@link CustomValueSubmittedEvent} fires directly</li>
  *   <li>On cancel, the value reverts and a {@link CustomValueCancelledEvent} fires</li>
+ * </ol>
+ * <p>
+ * <b>Existing value flow (Enter on unchanged selected value):</b>
+ * <ol>
+ *   <li>If an {@link ExistingValueHandler} is set, it is called with update/cancel callbacks</li>
+ *   <li>On update, the combo box value is replaced with the updated item</li>
+ *   <li>On cancel, the current value is kept</li>
  * </ol>
  *
  * @param <T> the item type
@@ -37,6 +45,7 @@ public class AutoSelectComboBox<T> extends ComboBox<T> {
     private Set<CustomValueTrigger> customValueTriggers = EnumSet.of(CustomValueTrigger.ENTER);
     private CustomValueHandler<T> customValueHandler;
     private CustomValueValidator customValueValidator = CustomValueValidator.acceptAll();
+    private ExistingValueHandler<T> existingValueHandler;
 
     private TransientItemStore<T> transientStore;
     private T previousValue;
@@ -134,6 +143,43 @@ public class AutoSelectComboBox<T> extends ComboBox<T> {
         setValue(previousValue);
     }
 
+    @ClientCallable
+    private void onExistingValueEnter() {
+        if (existingValueHandler == null) {
+            return;
+        }
+
+        T currentItem = getValue();
+        if (currentItem == null) {
+            return;
+        }
+
+        AtomicBoolean guard = new AtomicBoolean(false);
+        existingValueHandler.handle(currentItem,
+                updatedItem -> {
+                    if (guard.compareAndSet(false, true)) {
+                        onExistingValueUpdate(updatedItem);
+                    }
+                },
+                () -> guard.compareAndSet(false, true));
+    }
+
+    private void onExistingValueUpdate(T updatedItem) {
+        if (transientStore != null && updatedItem != null) {
+            // If the item was in the transient store, it's the same reference —
+            // the store already has the updated state. Just refresh the combo.
+            transientStore.add(updatedItem);
+        }
+        // Force a refresh: clear and re-set to trigger UI update
+        T current = getValue();
+        if (current != null && current.equals(updatedItem)) {
+            // Same object (edited in place) — need to force the combo to re-render
+            setValue(null);
+        }
+        setValue(updatedItem);
+    }
+
+
     @SuppressWarnings("unchecked")
     private void fireSubmittedEvent(String customText, T item) {
         ComponentUtil.fireEvent(this, new CustomValueSubmittedEvent<>(this, customText, item));
@@ -189,6 +235,18 @@ public class AutoSelectComboBox<T> extends ComboBox<T> {
      */
     public void setCustomValueValidator(CustomValueValidator validator) {
         this.customValueValidator = validator != null ? validator : CustomValueValidator.acceptAll();
+    }
+
+    /**
+     * Sets the handler invoked when the user presses Enter on an already-selected,
+     * unchanged value — typically to edit it. The component enables the client-side
+     * detection only when a handler is set.
+     * <p>
+     * Set to {@code null} to disable (default).
+     */
+    public void setExistingValueHandler(ExistingValueHandler<T> handler) {
+        this.existingValueHandler = handler;
+        getElement().setProperty("_existingValueEnterEnabled", handler != null);
     }
 
     /**

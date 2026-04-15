@@ -35,6 +35,16 @@ class AutoSelectComboBoxElement extends ComboBox {
         type: String,
         value: '[]',
         observer: '_customValueTriggersChanged'
+      },
+
+      /**
+       * Whether Enter on an unchanged existing value should notify the server.
+       * Set from server when an ExistingValueHandler is configured.
+       * @private
+       */
+      _existingValueEnterEnabled: {
+        type: Boolean,
+        value: false
       }
     };
   }
@@ -116,18 +126,35 @@ class AutoSelectComboBoxElement extends ComboBox {
     this._listenersAttached = false;
   }
 
-  // --- Custom value trigger handling ---
+  // --- Trigger handling ---
 
   /**
-   * Intercepts Tab key to trigger custom value handling if configured.
-   * Enter is handled by the combo box's built-in custom-value-set event.
+   * Unified Enter/Tab handler. On Enter:
+   *  - If existing value is selected and text hasn't changed → fires existing-value-enter
+   *  - If text doesn't match any item → dispatches custom-value-set
+   * On Tab:
+   *  - If text doesn't match any item → dispatches custom-value-set
    * @private
    */
   _onCustomKeyDown(e) {
-    if (e.key !== 'Tab' || !this._isTriggerEnabled('TAB')) {
+    if (e.key === 'Tab' && this._isTriggerEnabled('TAB')) {
+      this._maybeDispatchCustomValue();
       return;
     }
-    this._maybeDispatchCustomValue();
+
+    if (e.key === 'Enter') {
+      // Case 1: existing value, text unchanged → edit
+      if (this._existingValueEnterEnabled && this.selectedItem && this.value) {
+        const currentLabel = this._getItemLabel(this.selectedItem);
+        const inputValue = this.inputElement?.value ?? '';
+        if (currentLabel === inputValue) {
+          this.$server.onExistingValueEnter();
+          return;
+        }
+      }
+      // Case 2: no match → custom value (handled by combo's built-in custom-value-set)
+      // Nothing to do here — the combo box fires custom-value-set on its own
+    }
   }
 
   /** @private */
@@ -135,15 +162,10 @@ class AutoSelectComboBoxElement extends ComboBox {
     if (!this._isTriggerEnabled('BLUR')) {
       return;
     }
-    // Small delay to let other events (like item selection click) fire first
     requestAnimationFrame(() => this._maybeDispatchCustomValue());
   }
 
-  /**
-   * If the input has non-empty text and no item is selected, dispatch
-   * custom-value-set so the server-side handler runs.
-   * @private
-   */
+  /** @private */
   _maybeDispatchCustomValue() {
     const inputValue = this.inputElement?.value ?? '';
     if (inputValue === '' || this.selectedItem) {
@@ -184,8 +206,6 @@ class AutoSelectComboBoxElement extends ComboBox {
     this.previousInputLabel = e.detail;
     this.dirty = true;
 
-    // In custom value mode, the server handles everything — skip client-side
-    // invalid marking for non-existing values
     if (!this._isCustomValueMode()) {
       this.checkValidity();
     }

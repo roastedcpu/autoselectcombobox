@@ -68,7 +68,8 @@ public class FullShowcaseView extends AbstractDemo {
         layout.add(new H4("Two combo boxes sharing a transient store"));
         layout.add(new Span("Type a name not in the list and press Enter or Tab — a creation dialog opens. "
                 + "Press ESC or Cancel to revert. Items created in Combo A appear instantly in Combo B. "
-                + "The '+' button opens the same dialog without typing first."));
+                + "Press Enter on a transient (newly created) item to edit it. "
+                + "Persisted items ignore Enter. The '+' button opens the same dialog without typing first."));
         layout.add(new Hr());
 
         DataProvider<Person, String> backendProvider = DataProvider.fromFilteringCallbacks(
@@ -123,6 +124,15 @@ public class FullShowcaseView extends AbstractDemo {
         // Handler: opens creation form
         combo.setCustomValueHandler((text, onSubmit, onCancel) ->
                 openPersonDialog(text, onSubmit, onCancel));
+
+        // Edit existing: only transient (not yet persisted) items can be edited
+        combo.setExistingValueHandler((item, onUpdate, onCancel) -> {
+            if (transientStore.contains(item)) {
+                openPersonDialog(item.toString(), updated -> onUpdate.accept(updated), onCancel);
+            } else {
+                onCancel.run();
+            }
+        });
 
         // "+" button
         Button addButton = new Button(VaadinIcon.PLUS.create());
